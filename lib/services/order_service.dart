@@ -115,6 +115,8 @@ class OrderService {
   // Lấy đơn hàng của người dùng
   Future<List<OrderModel>> getUserOrders(String userId) async {
     try {
+      print("Đang thử truy vấn orders với index...");
+      // Thử truy vấn với sắp xếp (sẽ gây lỗi nếu index chưa sẵn sàng)
       QuerySnapshot snapshot =
           await _firestore
               .collection('orders')
@@ -122,6 +124,7 @@ class OrderService {
               .orderBy('createdAt', descending: true)
               .get();
 
+      print("Truy vấn orders với index thành công");
       return snapshot.docs
           .map(
             (doc) =>
@@ -129,12 +132,52 @@ class OrderService {
           )
           .toList();
     } catch (e) {
-      print('Error getting user orders: $e');
+      print('Lỗi khi lấy đơn hàng với index: $e');
+
+      // Nếu lỗi liên quan đến index, thực hiện truy vấn dự phòng
+      if (e.toString().contains('index') ||
+          e.toString().contains('failed-precondition') ||
+          e.toString().contains('FAILED_PRECONDITION')) {
+        print("Đang thực hiện truy vấn orders dự phòng không có sắp xếp...");
+        try {
+          // Truy vấn không có sắp xếp
+          QuerySnapshot snapshot =
+              await _firestore
+                  .collection('orders')
+                  .where('userId', isEqualTo: userId)
+                  .get();
+
+          print(
+            "Truy vấn orders dự phòng thành công, đang sắp xếp kết quả thủ công...",
+          );
+          // Chuyển đổi dữ liệu
+          List<OrderModel> orders =
+              snapshot.docs
+                  .map(
+                    (doc) => OrderModel.fromMap(
+                      doc.data() as Map<String, dynamic>,
+                      doc.id,
+                    ),
+                  )
+                  .toList();
+
+          // Sắp xếp thủ công theo thời gian tạo (giảm dần)
+          orders.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+          print("Đã sắp xếp ${orders.length} đơn hàng thành công");
+          return orders;
+        } catch (fallbackError) {
+          print("Lỗi khi thực hiện truy vấn orders dự phòng: $fallbackError");
+          rethrow;
+        }
+      }
+
+      // Nếu lỗi không liên quan đến index, ném lại lỗi
+      print("Lỗi không phải do index, ném lại lỗi gốc");
       rethrow;
     }
-  }
+  } // Lấy chi tiết đơn hàng
 
-  // Lấy chi tiết đơn hàng
   Future<OrderModel?> getOrderById(String orderId) async {
     try {
       DocumentSnapshot doc =

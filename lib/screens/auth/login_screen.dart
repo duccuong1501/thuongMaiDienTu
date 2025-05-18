@@ -24,6 +24,35 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
+  // Future<void> _login() async {
+  //   if (!_formKey.currentState!.validate()) return;
+
+  //   setState(() {
+  //     _isLoading = true;
+  //     _errorMessage = '';
+  //   });
+
+  //   try {
+  //     final authService = Provider.of<AuthService>(context, listen: false);
+  //     await authService.login(
+  //       _emailController.text.trim(),
+  //       _passwordController.text,
+  //     );
+
+  //     Navigator.of(
+  //       context,
+  //     ).pushReplacement(MaterialPageRoute(builder: (context) => HomeScreen()));
+  //   } catch (e) {
+  //     setState(() {
+  //       _errorMessage = e.toString();
+  //     });
+  //   } finally {
+  //     setState(() {
+  //       _isLoading = false;
+  //     });
+  //   }
+  // }
+
   Future<void> _login() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -33,23 +62,65 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
+      print("===== BẮT ĐẦU ĐĂNG NHẬP =====");
       final authService = Provider.of<AuthService>(context, listen: false);
-      await authService.login(
+
+      // Đăng nhập và lấy User từ Firebase Auth
+      final user = await authService.login(
         _emailController.text.trim(),
         _passwordController.text,
       );
 
-      Navigator.of(
-        context,
-      ).pushReplacement(MaterialPageRoute(builder: (context) => HomeScreen()));
+      // Kiểm tra xem đăng nhập có thành công không
+      if (user != null) {
+        print("===== ĐĂNG NHẬP THÀNH CÔNG, CHUYỂN HƯỚNG =====");
+
+        // Đảm bảo mounted còn hợp lệ
+        if (mounted) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (context) => HomeScreen()),
+          );
+        }
+      } else {
+        print("===== ĐĂNG NHẬP THẤT BẠI - USER NULL =====");
+        setState(() {
+          _errorMessage = 'Đăng nhập không thành công. Vui lòng thử lại.';
+        });
+      }
     } catch (e) {
-      setState(() {
-        _errorMessage = e.toString();
-      });
+      print("===== LỖI ĐĂNG NHẬP =====");
+      print("Loại lỗi: ${e.runtimeType}");
+      print("Chi tiết lỗi: $e");
+
+      // Kiểm tra xem đã đăng nhập vào Firebase Auth chưa
+      final authService = Provider.of<AuthService>(context, listen: false);
+      if (authService.user != null) {
+        print(
+          "===== ĐÃ ĐĂNG NHẬP FIREBASE AUTH, BỎ QUA LỖI VÀ CHUYỂN HƯỚNG =====",
+        );
+
+        if (mounted) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (context) => HomeScreen()),
+          );
+        }
+      } else {
+        setState(() {
+          if (e.toString().contains('user-not-found')) {
+            _errorMessage = 'Email không tồn tại.';
+          } else if (e.toString().contains('wrong-password')) {
+            _errorMessage = 'Mật khẩu không chính xác.';
+          } else {
+            _errorMessage = 'Đăng nhập thất bại: ${e.toString()}';
+          }
+        });
+      }
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -146,6 +217,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             : Text('Đăng nhập'),
                   ),
                   SizedBox(height: 16),
+
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [

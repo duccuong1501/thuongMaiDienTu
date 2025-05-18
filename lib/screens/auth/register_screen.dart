@@ -35,24 +35,78 @@ class _RegisterScreenState extends State<RegisterScreen> {
     });
 
     try {
+      print("===== BẮT ĐẦU ĐĂNG KÝ TỪ MÀN HÌNH =====");
       final authService = Provider.of<AuthService>(context, listen: false);
-      await authService.register(
+
+      // Đăng ký và bắt User từ Firebase Auth
+      final userModel = await authService.register(
         _emailController.text.trim(),
         _fullNameController.text.trim(),
         _passwordController.text,
       );
 
-      Navigator.of(
-        context,
-      ).pushReplacement(MaterialPageRoute(builder: (context) => HomeScreen()));
+      // Kiểm tra xem đăng ký có thành công không
+      if (userModel != null) {
+        print("===== ĐĂNG KÝ THÀNH CÔNG, CHUYỂN HƯỚNG =====");
+
+        // Đảm bảo mounted còn hợp lệ
+        if (mounted) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (context) => HomeScreen()),
+          );
+        }
+      } else {
+        print("===== ĐĂNG KÝ THẤT BẠI - USERMODEL NULL =====");
+        setState(() {
+          _errorMessage = 'Đăng ký không thành công. Vui lòng thử lại.';
+        });
+      }
     } catch (e) {
-      setState(() {
-        _errorMessage = e.toString();
-      });
+      print("===== LỖI ĐĂNG KÝ =====");
+      print("Loại lỗi: ${e.runtimeType}");
+      print("Chi tiết lỗi: $e");
+
+      // Kiểm tra xem đã tạo tài khoản Firebase Auth chưa
+      final authService = Provider.of<AuthService>(context, listen: false);
+      if (authService.user != null) {
+        print(
+          "===== ĐÃ TẠO TÀI KHOẢN FIREBASE AUTH, BỎ QUA LỖI VÀ CHUYỂN HƯỚNG =====",
+        );
+
+        if (mounted) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (context) => HomeScreen()),
+          );
+        }
+      } else {
+        setState(() {
+          if (e.toString().contains('email-already-in-use')) {
+            _errorMessage = 'Email này đã được sử dụng bởi một tài khoản khác.';
+          } else if (e.toString().contains('weak-password')) {
+            _errorMessage =
+                'Mật khẩu quá yếu. Vui lòng chọn mật khẩu mạnh hơn.';
+          } else if (e.toString().contains('invalid-email')) {
+            _errorMessage = 'Email không hợp lệ.';
+          } else if (e.toString().contains('PigeonUserDetails')) {
+            // Nếu là lỗi PigeonUserDetails, vẫn đăng ký thành công nhưng lưu Firestore thất bại
+            // Chuyển hướng đến màn hình chính
+            if (mounted) {
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute(builder: (context) => HomeScreen()),
+              );
+            }
+            return; // Thoát sớm để không hiển thị lỗi
+          } else {
+            _errorMessage = 'Đăng ký thất bại: ${e.toString()}';
+          }
+        });
+      }
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 

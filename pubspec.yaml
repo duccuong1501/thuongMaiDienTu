@@ -52,6 +52,7 @@ dependencies:
   url_launcher: ^6.2.1
   image_picker: ^1.0.4
   uuid: ^4.2.1
+  firebase_app_check: ^0.2.2
 
 dev_dependencies:
   flutter_test:

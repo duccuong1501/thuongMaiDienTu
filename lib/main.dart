@@ -1,6 +1,8 @@
 import 'package:ecommerce_app/data_seeder.dart';
+import 'package:ecommerce_app/screens/cart/cart_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:provider/provider.dart';
 import 'services/firebase_service.dart';
 import 'services/auth_service.dart';
@@ -12,13 +14,13 @@ import 'screens/auth/login_screen.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
-  // Gọi DataSeeder để thêm dữ liệu mẫu
-  // Có thể đặt điều kiện ở đây, ví dụ: chỉ chạy khi đang debug
-  bool shouldSeedData =
-      true; // Có thể thay đổi thành false sau khi đã có dữ liệu
-  if (shouldSeedData) {
-    await DataSeeder.seedAll();
-  }
+
+  // // Gọi DataSeeder để thêm dữ liệu mẫu
+  // bool shouldSeedData =
+  //     true; // Có thể thay đổi thành false sau khi đã có dữ liệu
+  // if (shouldSeedData) {
+  //   await DataSeeder.seedAll();
+  // }
   runApp(MyApp());
 }
 
@@ -30,6 +32,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (context) => AuthService()),
         Provider(create: (context) => ProductService()),
         Provider(create: (context) => OrderService()),
+        ChangeNotifierProvider(create: (context) => CartProvider()),
       ],
       child: MaterialApp(
         title: 'E-Commerce App',

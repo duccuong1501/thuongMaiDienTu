@@ -22,16 +22,73 @@ class UserModel {
   });
 
   factory UserModel.fromMap(Map<String, dynamic> map, String id) {
-    return UserModel(
-      id: id,
-      email: map['email'] ?? '',
-      fullName: map['fullName'] ?? '',
-      addresses: List<Map<String, dynamic>>.from(map['addresses'] ?? []),
-      loyaltyPoints: map['loyaltyPoints'] ?? 0,
-      orders: List<String>.from(map['orders'] ?? []),
-      createdAt: (map['createdAt'] as Timestamp).toDate(),
-      isAdmin: map['isAdmin'] ?? false,
-    );
+    try {
+      // In dữ liệu cho mục đích gỡ lỗi
+      print("Dữ liệu thô từ Firestore: $map");
+
+      // Xử lý addresses một cách an toàn
+      List<Map<String, dynamic>> addressesList = [];
+      if (map['addresses'] != null) {
+        if (map['addresses'] is List) {
+          // Chuyển đổi từng phần tử một cách an toàn
+          for (var item in map['addresses']) {
+            if (item is Map) {
+              // Chuyển đổi từ Map<dynamic, dynamic> sang Map<String, dynamic>
+              Map<String, dynamic> addressMap = {};
+              item.forEach((key, value) {
+                if (key is String) {
+                  addressMap[key] = value;
+                }
+              });
+              addressesList.add(addressMap);
+            }
+          }
+        }
+      }
+
+      // Xử lý orders một cách an toàn
+      List<String> ordersList = [];
+      if (map['orders'] != null) {
+        if (map['orders'] is List) {
+          for (var item in map['orders']) {
+            if (item is String) {
+              ordersList.add(item);
+            } else if (item != null) {
+              // Chuyển đổi sang String nếu có thể
+              ordersList.add(item.toString());
+            }
+          }
+        }
+      }
+
+      // Xử lý createdAt an toàn
+      DateTime createdAtDate;
+      if (map['createdAt'] is Timestamp) {
+        createdAtDate = (map['createdAt'] as Timestamp).toDate();
+      } else {
+        createdAtDate = DateTime.now();
+      }
+
+      return UserModel(
+        id: id,
+        email: map['email'] ?? '',
+        fullName: map['fullName'] ?? '',
+        addresses: addressesList,
+        loyaltyPoints: map['loyaltyPoints'] ?? 0,
+        orders: ordersList,
+        createdAt: createdAtDate,
+        isAdmin: map['isAdmin'] ?? false,
+      );
+    } catch (e) {
+      print("Lỗi khi chuyển đổi UserModel: $e");
+      // Trả về model cơ bản để tránh crash
+      return UserModel(
+        id: id,
+        email: map['email'] ?? '',
+        fullName: map['fullName'] ?? '',
+        createdAt: DateTime.now(),
+      );
+    }
   }
 
   Map<String, dynamic> toMap() {

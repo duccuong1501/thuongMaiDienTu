@@ -1,3 +1,4 @@
+import 'package:ecommerce_app/screens/cart/checkout_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../services/product_service.dart';
@@ -166,59 +167,6 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
             ],
           ),
     );
-  }
-
-  void _addToCart() {
-    if (_product == null) return;
-
-    if (_product!.variants.isNotEmpty && _selectedVariant == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Vui lòng chọn phiên bản sản phẩm')),
-      );
-      return;
-    }
-
-    // Kiểm tra số lượng tồn kho
-    if (_product!.variants.isNotEmpty) {
-      final selectedVariantObj = _product!.variants.firstWhere(
-        (v) => v.name == _selectedVariant,
-      );
-
-      if (selectedVariantObj.stock < _quantity) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Số lượng vượt quá hàng tồn kho')),
-        );
-        return;
-      }
-    }
-
-    try {
-      final cart = Provider.of<CartProvider>(context, listen: false);
-      cart.addItem(
-        productId: _product!.id,
-        name: _product!.name,
-        price: _product!.finalPrice,
-        variant: _selectedVariant,
-        quantity: _quantity,
-        image: _product!.images.isNotEmpty ? _product!.images.first : '',
-      );
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Đã thêm sản phẩm vào giỏ hàng'),
-          action: SnackBarAction(
-            label: 'XEM GIỎ HÀNG',
-            onPressed: () {
-              Navigator.pushNamed(context, '/cart');
-            },
-          ),
-        ),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Lỗi: ${e.toString()}')));
-    }
   }
 
   @override
@@ -492,6 +440,123 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
         ],
       ),
     );
+  }
+
+  void _buyNow() {
+    // Thêm sản phẩm vào giỏ hàng
+    if (_addToCart(showMessage: false)) {
+      // Thêm tham số để kiểm soát việc hiển thị thông báo
+      // Kiểm tra đăng nhập
+      final authService = Provider.of<AuthService>(context, listen: false);
+
+      if (!authService.isLoggedIn) {
+        // Hiển thị dialog yêu cầu đăng nhập
+        showDialog(
+          context: context,
+          builder:
+              (context) => AlertDialog(
+                title: Text('Đăng nhập'),
+                content: Text('Bạn cần đăng nhập để tiến hành thanh toán.'),
+                actions: [
+                  TextButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                    },
+                    child: Text('Hủy'),
+                  ),
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => LoginScreen()),
+                      );
+                    },
+                    child: Text('Đăng nhập'),
+                  ),
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      // Chuyển đến màn hình thanh toán dù không đăng nhập
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => CheckoutScreen(),
+                        ),
+                      );
+                    },
+                    child: Text('Tiếp tục mua hàng'),
+                  ),
+                ],
+              ),
+        );
+      } else {
+        // Nếu đã đăng nhập, chuyển thẳng đến trang thanh toán
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => CheckoutScreen()),
+        );
+      }
+    }
+  }
+
+  // Sửa lại phương thức _addToCart để có thể tái sử dụng
+  bool _addToCart({bool showMessage = true}) {
+    if (_product == null) return false;
+
+    if (_product!.variants.isNotEmpty && _selectedVariant == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Vui lòng chọn phiên bản sản phẩm')),
+      );
+      return false;
+    }
+
+    // Kiểm tra số lượng tồn kho
+    if (_product!.variants.isNotEmpty) {
+      final selectedVariantObj = _product!.variants.firstWhere(
+        (v) => v.name == _selectedVariant,
+      );
+
+      if (selectedVariantObj.stock < _quantity) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Số lượng vượt quá hàng tồn kho')),
+        );
+        return false;
+      }
+    }
+
+    try {
+      final cart = Provider.of<CartProvider>(context, listen: false);
+      cart.addItem(
+        productId: _product!.id,
+        name: _product!.name,
+        price: _product!.finalPrice,
+        variant: _selectedVariant,
+        quantity: _quantity,
+        image: _product!.images.isNotEmpty ? _product!.images.first : '',
+      );
+
+      if (showMessage) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Đã thêm sản phẩm vào giỏ hàng'),
+            action: SnackBarAction(
+              label: 'XEM GIỎ HÀNG',
+              onPressed: () {
+                Navigator.pushNamed(context, '/cart');
+              },
+            ),
+          ),
+        );
+      }
+
+      return true;
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Lỗi: ${e.toString()}')));
+      return false;
+    }
   }
 
   Widget _buildImageGallery() {

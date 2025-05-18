@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../services/auth_service.dart';
@@ -133,32 +134,57 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
       // Save user address if logged in
       if (authService.isLoggedIn) {
-        // Check if address already exists
-        bool addressExists = false;
+        try {
+          // Kiểm tra xem document người dùng có tồn tại không
+          final userDoc =
+              await FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(authService.user!.uid)
+                  .get();
 
-        if (authService.userModel != null) {
-          final addresses = authService.userModel!.addresses;
+          if (!userDoc.exists) {
+            // Tạo document người dùng mới nếu chưa tồn tại
+            await FirebaseFirestore.instance
+                .collection('users')
+                .doc(authService.user!.uid)
+                .set({
+                  'id': authService.user!.uid,
+                  'email': authService.user!.email,
+                  'fullName': _nameController.text,
+                  'addresses': [shippingAddress],
+                  'loyaltyPoints': 0,
+                  'orders': [],
+                  'createdAt': Timestamp.now(),
+                  'isAdmin': false,
+                });
+          } else {
+            // Cập nhật địa chỉ
+            bool addressExists = false;
+            List<Map<String, dynamic>> addresses = [];
 
-          for (var i = 0; i < addresses.length; i++) {
-            if (addresses[i]['street'] == _addressController.text &&
-                addresses[i]['city'] == _cityController.text) {
-              addressExists = true;
-              break;
+            if (authService.userModel != null) {
+              addresses = List<Map<String, dynamic>>.from(
+                authService.userModel!.addresses,
+              );
+
+              for (var i = 0; i < addresses.length; i++) {
+                if (addresses[i]['street'] == _addressController.text &&
+                    addresses[i]['city'] == _cityController.text) {
+                  addressExists = true;
+                  break;
+                }
+              }
+            }
+
+            if (!addressExists) {
+              addresses.add(shippingAddress);
+
+              await authService.updateProfile(_nameController.text, addresses);
             }
           }
-
-          if (!addressExists) {
-            // Add new address
-            List<Map<String, dynamic>> updatedAddresses = [
-              ...addresses,
-              shippingAddress,
-            ];
-
-            await authService.updateProfile(
-              authService.userModel!.fullName,
-              updatedAddresses,
-            );
-          }
+        } catch (addressError) {
+          print("Lỗi khi lưu địa chỉ: $addressError");
+          // Tiếp tục đặt hàng ngay cả khi không thể lưu địa chỉ
         }
       }
 
